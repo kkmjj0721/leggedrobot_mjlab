@@ -3,7 +3,6 @@ from src.tasks.himloco.rl import HIMLocoOnPolicyRunner
 
 
 from .env_cfgs import (
-  unitree_go2_flat_env_cfg,
   unitree_go2_rough_env_cfg,
 )
 

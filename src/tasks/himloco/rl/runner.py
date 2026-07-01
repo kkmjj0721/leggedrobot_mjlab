@@ -13,7 +13,7 @@ from mjlab.rl.exporter_utils import (
   get_base_metadata,
 )
 
-from rsl_rl.rsl_rl.runners.him_on_policy_runner import HIMOnPolicyRunner
+from rsl_rl.runners.him_on_policy_runner import HIMOnPolicyRunner
 
 class _OnnxPolicyWrapper(torch.nn.Module):
   """Expose HIMActorCritic.act_inference as a standard ONNX forward."""
@@ -326,38 +326,45 @@ class HimVecEnvWrapper(RslRlVecEnvWrapper):
 class HIMLocoOnPolicyRunner(HIMOnPolicyRunner):
   env: HimVecEnvWrapper
 
-  def __init__(self, env, env_cfg, rl_cfg, device='cpu', **kwargs):
+  def __init__(self, env, train_cfg, log_dir, device='cpu', **kwargs):
     # 1. 确保环境是被 HimVecEnvWrapper 包裹的
     if not isinstance(env, HimVecEnvWrapper):
         env = HimVecEnvWrapper(env)
     
-    # 2. 桥接并映射参数
+    # 2. 桥接并映射参数（注意此时 train_cfg 是一个字典）
     train_cfg_dict = {
         "runner": {
             "policy_class_name": "HIMActorCritic", 
-            "algorithm_class_name": getattr(rl_cfg.algorithm, "class_name", "HIMPPO"),
-            "num_steps_per_env": rl_cfg.num_steps_per_env,
-            "save_interval": rl_cfg.save_interval,
+            "algorithm_class_name": train_cfg["algorithm"].get("class_name", "HIMPPO"),
+            "num_steps_per_env": train_cfg["num_steps_per_env"],
+            "save_interval": train_cfg["save_interval"],
          },
-        "algorithm": rl_cfg.algorithm.__dict__.copy(),
+        "algorithm": train_cfg["algorithm"].copy(),
         "policy": {
-            "init_noise_std": rl_cfg.actor.distribution_cfg.get("init_std", 1.0),
-            "actor_hidden_dims": rl_cfg.actor.hidden_dims,
-            "critic_hidden_dims": rl_cfg.critic.hidden_dims,
-            "estimator_hidden_dims": rl_cfg.estimator.hidden_dims, # [新增] 修复 Estimator 参数缺失
-            "activation": rl_cfg.actor.activation,
+            "init_noise_std": train_cfg["actor"]["distribution_cfg"].get("init_std", 1.0),
+            "actor_hidden_dims": train_cfg["actor"]["hidden_dims"],
+            "critic_hidden_dims": train_cfg["critic"]["hidden_dims"],
+            "estimator_hidden_dims": train_cfg["estimator"]["hidden_dims"], 
+            "activation": train_cfg["actor"]["activation"],
         }
     }
         
     # 防止 rsl_rl 基类算法解析报错
-    train_cfg_dict["algorithm"].pop("class_name", None)
+    import inspect
+    from rsl_rl.algorithms import HIMPPO
+    
+    supported_args = inspect.signature(HIMPPO.__init__).parameters.keys()
+    train_cfg_dict["algorithm"] = {
+        k: v for k, v in train_cfg_dict["algorithm"].items() 
+        if k in supported_args or k == "kwargs"
+    }
         
     # 保存属性以供导出使用
-    self.logger_type = getattr(rl_cfg, "logger", "tensorboard")
-    self.empirical_normalization = rl_cfg.actor.obs_normalization
+    self.logger_type = train_cfg.get("logger", "tensorboard")
+    self.empirical_normalization = train_cfg["actor"].get("obs_normalization", True)
         
-    # 调用底层 HIMOnPolicyRunner 初始化
-    super().__init__(env=env, train_cfg=train_cfg_dict, log_dir=rl_cfg.experiment_name, device=device)
+    # 调用底层 HIMOnPolicyRunner 初始化，直接使用 train.py 传过来的 log_dir
+    super().__init__(env=env, train_cfg=train_cfg_dict, log_dir=log_dir, device=device)
 
   def _export_policy_to_onnx(self, path: str, filename: str):
       """[新增] 将策略网络导出为 ONNX 格式"""

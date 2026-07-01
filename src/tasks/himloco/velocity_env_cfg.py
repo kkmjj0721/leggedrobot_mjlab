@@ -344,7 +344,7 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "hip_pos": RewardTermCfg(
             func=mdp.hip_pos,
-            weight=-0.25,
+            weight=-0.5,
             params={
                 "command_name": "twist", # 匹配你 command manager 里的命令名称
                 "command_threshold": 0.05, # 如果指令绝对值小于 0.05 m/s 或 rad/s，则视为 0
@@ -406,7 +406,7 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
             ),
             sensors=(terrain_scan,),
             # 将之前定义好的 terrain_scan (激光雷达/射线投射扫描器) 加入场景的传感器列表中。
-            num_envs=4096,    
+            num_envs=2048,    
             # 默认的并行环境数量设为 1。
             # 【注】在实际进行 GPU 大规模 RL 训练时，外部的启动脚本通常会覆盖这个参数（例如改写为 4096），从而生成四千条狗同时在不同的地形格子里训练。
             extent=2.0,

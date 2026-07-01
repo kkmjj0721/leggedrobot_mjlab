@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from mjlab.rl import (
   RslRlModelCfg,
   RslRlOnPolicyRunnerCfg,
@@ -5,10 +7,13 @@ from mjlab.rl import (
 )
 
 
+@dataclass  
 class RslRlHimRunnerCfg(RslRlOnPolicyRunnerCfg):
     """Extended runner config with Him-specific parameters."""
     runner_class_name: str = "HIMOnPolicyRunner"
     policy_class_name: str = "HIMActorCritic"
+
+    estimator: RslRlModelCfg = None
     
 
 

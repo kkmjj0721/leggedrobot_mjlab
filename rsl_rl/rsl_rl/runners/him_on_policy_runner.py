@@ -235,9 +235,15 @@ class HIMOnPolicyRunner:
             'infos': infos,
             }, path)
 
-    def load(self, path, load_optimizer=True):
-        loaded_dict = torch.load(path)
-        self.alg.actor_critic.load_state_dict(loaded_dict['model_state_dict'])
+    def load(self, path, load_optimizer=True, **kwargs):
+        # 1. 接收 map_location，确保模型正确加载到 GPU 或 CPU
+        map_location = kwargs.get('map_location', None)
+        loaded_dict = torch.load(path, map_location=map_location)
+        
+        # 2. 接收 strict 参数，允许严格或非严格加载权重
+        strict = kwargs.get('strict', True)
+        self.alg.actor_critic.load_state_dict(loaded_dict['model_state_dict'], strict=strict)
+        
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict['optimizer_state_dict'])
             self.alg.actor_critic.estimator.optimizer.load_state_dict(loaded_dict['estimator_optimizer_state_dict'])
